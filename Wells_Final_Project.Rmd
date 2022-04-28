@@ -1,0 +1,172 @@
+---
+title: "Wells_Final_Project"
+author: "Jason Wells"
+date: "12/4/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load-libraries, echo=FALSE}
+library(tidyverse)
+library(socviz)
+library(RColorBrewer)
+library(usmap)
+library(maps)
+library(cowplot)
+library(stringr)
+library(tinytex)
+library(ggplot2)
+```
+
+#Question 1:
+How correlated is one’s education status and one’s income?
+```{r first-question}
+gen_soc_surv <- gss_sm
+us_map <- us_map(regions = "state")
+Midwest <- c("IA","IL","IN","KS","MI","MN","MO","ND","NE","OH","SD","WI")
+West <- c("AK","AZ","CA","CO","HI","ID","MT","NM","NV","OR","UT","WA","WY")
+Northeast <- c("CT","MA","ME","NH","NJ","NY","PA","RI","VT")
+South <-  c("AL","AR","DC","DE","FL","GA","KY","LA","MD","MS","NC","OK","SC","TN","TX","VA","WV")
+
+us_map <- us_map %>%
+  mutate(biregion = case_when(abbr %in% Midwest ~"Midwest", abbr %in% West~"West",abbr %in% Northeast ~"Northeast",abbr %in% South~"South"))
+us_map <- us_map %>%
+  rename("state" = abbr)
+gen_soc_surv <- gen_soc_surv %>%
+  na.omit() %>%
+  rename(biregion = "bigregion", income = "income16") %>%
+  mutate(biregion = as.character(biregion), degree = as.character(degree), income = as.character(income))
+
+
+
+us_gen <- left_join (us_map, gen_soc_surv,by = "biregion")
+us_gen1 <- us_gen %>%
+  select(income,degree) %>%
+  group_by(income,degree)
+
+us_gen1 %>%
+  ggplot()+
+  geom_histogram(aes(income,fill=degree),stat = "count", binwidth = 30000 ) +
+  coord_flip() +
+  facet_wrap(~degree, scales = "free") +
+  scale_fill_brewer(palette = "Set1") +
+  labs(title = "Level of Degree and Income") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(panel.background =  element_blank())
+```
+#Conclusion: 
+Nearly everyone that reported greater than 170,000 dollars had at least a bachelor degree or higher. The majority that reported under 1,000 dollars were in the Lt High School category.
+
+#Question 2:
+What is the most popular level of education by state?
+```{r second-question}
+us_gen2 <- us_gen %>%
+  group_by(degree,state) %>%
+  count()
+us_gen2 <- us_gen2 %>%
+  rename(total = n)
+new <- merge(us_gen2, us_map, by = "state" )
+
+new %>%
+  ggplot(mapping = aes( x = x, y = y, group = group, fill = total)) +
+  geom_polygon(color = "gray") +
+  coord_equal() +
+  labs(title = "Degree") +
+  theme_map() +
+  scale_fill_distiller(palette = "Set1") +
+  facet_wrap(~degree)
+new %>%
+  filter(biregion == "South", degree == "Bachelor")%>%
+  ggplot(mapping = aes( x = x, y = y, group = group, fill = total)) +
+  geom_polygon(color = "gray") +
+  coord_equal() +
+  labs(title = "Number of Bachelor Degree's in the South") +
+  theme_map() +
+  scale_fill_distiller(palette = "Set1")
+```
+#Conclusion:
+California and Texas are two of the leaders in the number of higher education degrees (Bachelor’s and Graduate).
+The highest incidence of Lt High School appears to be in Texas.
+
+#Question 3
+To what degree does one’s income reflect on their state of happiness?
+```{r third-question}
+data <- socviz::gss_sm
+us <- us_map(regions = "states")
+Midwest <- c("IA", "IL", "IN", "KS", "MI", "MN", "MO", "ND", "NE", "OH", "SD", "WI")
+West <- c("AK", "AZ", "CA", "CO", "HI", "ID", "MT", "NM", "NV", "OR", "UT", "WA", "WY")
+Northeast <- c("CT", "MA", "ME", "NH", "NJ", "NY", "PA", "RI", "VT")
+South <- c("AL", "AR", "DC", "DE", "FL", "GA", "KY", "LA", "MD", "MS", "NC", "OK", "SC", "TN", "TX", "VA", "WV")
+
+us <- us %>%
+  mutate(bigregion = case_when(abbr %in% Midwest ~"Midwest", abbr %in% West ~"West", abbr %in% Northeast ~"Northeast", abbr %in% South ~"South"))
+data <- data %>%
+  na.omit() %>%
+  rename("income" = income16,
+         "happiness" = happy)
+  #distinct()
+data %>%
+  group_by(income) %>%
+  ggplot(mapping = aes(x = income, fill = income)) +
+  geom_bar() +
+  theme(legend.position = "none", axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        panel.background = element_blank())
+data %>%
+  group_by(happiness,income) %>%
+  ggplot(mapping = aes(x = happiness, fill = happiness)) +
+  geom_bar() +
+  facet_wrap(~income) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank())
+```
+#Conclusion:
+Happiness will have an upward trend with higher income… to a point.
+Income over $75,000/year has a negligible effect on income.
+Also, the highest ratio of happy (Very and Pretty Happy) to unhappy (Not Too Happy) people is between 40,000 dollars to 90,000 dollars.
+
+#Question 4:
+What is the effect on the number of partner(s)/significant other(s) on one’s happiness?
+```{r fourth-question}
+data2 <- left_join (us, data,by = "bigregion")
+  #na.omit() %>%
+  #mutate(biregion = as.character(bigregion), income16 = as.character(income16))
+data3 <- data2 %>%
+  group_by(happiness, partners)
+  #count() %>%
+  #rename(total = n)
+data3 %>%
+  ggplot()+
+  geom_histogram(aes(partners,fill=happiness),stat = "count") +
+  coord_flip() +
+  scale_fill_brewer(palette = "Set1") +
+  labs(title = "Partners to Happiness") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(panel.background =  element_blank(),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank())
+```
+#Conclusion:
+The more partners a person has does not necessarily mean that they will be happier.
+From the graph, it seems that the amount of Very Happy people decrease after 3 partners.
+
+#Question 5:
+To what extent are a person’s individual happiness and their marital status related?
+```{r fifth-question}
+```
+#Conclusion:
+Highest incidence of general unhappiness reported by group that never married. Which was closely followed by divorced individuals.
+Highest ratio of reported happiness to unhappiness is by married persons.
+Again, also followed closely by divorced individuals.
+
+#Question 6:
+Particularly, but not exclusively in the South, how much lower are divorces and separations when compared to the other regions in the United States?
+```{r sixth-question}
+```
+#Conclusion:
+The South was not the expected lowest divorce rate.
+The lowest divorce rate being the West.
+
